@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HostelDaze: hostel presence and mess planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#EDF0F6; --surface:#FFFFFF; --surface2:#F5F7FB; --ink:#141B3D; --ink2:#4B5579; --line:#D8DDEA;
+  --brand:#2B3A9E; --brand-ink:#FFFFFF;
+  --ok:#1E9E6A; --ok-ink:#FFFFFF; --ok-t:#0E6B47;
+  --out:#F2A81D; --out-ink:#3A2600; --out-t:#8A5A00;
+  --away:#E2483D; --away-ink:#FFFFFF; --away-t:#B3261E;
+  --vac:#C3CBDC;
+  --disp:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
+  --body:'Figtree','Segoe UI',system-ui,-apple-system,sans-serif;
+  --cell:clamp(32px,3.6vw,44px); --gap:4px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1326; --surface:#171E38; --surface2:#1E2745; --ink:#EAEEFB; --ink2:#A2ACD0; --line:#2B3560;
+    --brand:#8F9CFF; --brand-ink:#0E1326;
+    --ok:#2FBF85; --ok-ink:#06231A; --ok-t:#63E0AB;
+    --out:#F5B83A; --out-ink:#2B1C00; --out-t:#FFD27A;
+    --away:#F0625A; --away-ink:#2A0705; --away-t:#FF9A93;
+    --vac:#3A4470; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1326; --surface:#171E38; --surface2:#1E2745; --ink:#EAEEFB; --ink2:#A2ACD0; --line:#2B3560;
+  --brand:#8F9CFF; --brand-ink:#0E1326;
+  --ok:#2FBF85; --ok-ink:#06231A; --ok-t:#63E0AB;
+  --out:#F5B83A; --out-ink:#2B1C00; --out-t:#FFD27A;
+  --away:#F0625A; --away-ink:#2A0705; --away-t:#FF9A93;
+  --vac:#3A4470; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 var(--body);-webkit-font-smoothing:antialiased;min-height:100%}
+h1,h2,h3{font-family:var(--disp);margin:0;letter-spacing:-.01em;line-height:1.1}
+p{margin:0}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+.mut{color:var(--ink2)}
+:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:.6rem 1rem;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:.95rem;transition:background .15s,border-color .15s}
+.btn:hover{border-color:var(--brand)}
+.btn.primary{background:var(--brand);color:var(--brand-ink);border-color:transparent}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--away-t);border-color:color-mix(in srgb,var(--away) 45%,var(--line))}
+.btn.ghost{background:transparent}
+.btn.sm{padding:.35rem .7rem;font-size:.85rem;border-radius:8px}
+.btn.lg{padding:.85rem 1.4rem;font-size:1.05rem;border-radius:12px}
+.btn[disabled],.ib[disabled]{opacity:.4;cursor:not-allowed}
+.ib{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:var(--surface);display:inline-grid;place-items:center;font-size:1.2rem;line-height:1}
+.ib:hover{border-color:var(--brand)}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:99px;font-weight:600;font-size:.8rem;white-space:nowrap}
+.chip::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.chip.in{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok-t)}
+.chip.out,.chip.mixed{background:color-mix(in srgb,var(--out) 22%,transparent);color:var(--out-t)}
+.chip.away{background:color-mix(in srgb,var(--away) 18%,transparent);color:var(--away-t)}
+.chip.vac,.chip.empty,.chip.past{background:color-mix(in srgb,var(--vac) 35%,transparent);color:var(--ink2)}
+.chip.upcoming{background:color-mix(in srgb,var(--brand) 16%,transparent);color:var(--brand)}
+.chip.active{background:color-mix(in srgb,var(--out) 22%,transparent);color:var(--out-t)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px}
+.err{color:var(--away-t);font-size:.9rem;min-height:1.3em;font-weight:500}
+
+/* brand */
+.brand{display:inline-flex;align-items:center;gap:10px;font:700 1.35rem var(--disp);letter-spacing:-.02em}
+.brand i{width:26px;height:26px;display:grid;grid-template-columns:repeat(3,1fr);gap:3px}
+.brand i b{border-radius:3px;background:var(--brand)}
+.brand i b:nth-child(2){background:var(--ok)}.brand i b:nth-child(5){background:var(--out)}.brand i b:nth-child(7){background:var(--away)}
+
+/* landing */
+.lhead{max-width:1180px;margin:0 auto;padding:20px 24px 0;display:flex;justify-content:space-between;align-items:center}
+.lhero{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center;max-width:1180px;margin:0 auto;padding:40px 24px 56px}
+.lhero h1{font-size:clamp(2.3rem,5vw,4.1rem);font-weight:700;letter-spacing:-.03em;line-height:1.02;max-width:14ch}
+.lhero .sub{margin-top:20px;font-size:1.15rem;color:var(--ink2);max-width:46ch}
+.cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:32px}
+.fine{margin-top:16px;font-size:.9rem;color:var(--ink2);max-width:52ch}
+.lmap{background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:24px;display:flex;gap:28px;align-items:center;justify-content:center}
+.lmap .plan{--m:14px;display:grid;grid-template-columns:repeat(16,var(--m));grid-auto-rows:var(--m);gap:5px}
+.md{border-radius:4px;background:var(--vac);opacity:.55;transition:background .5s var(--d,0ms),opacity .5s var(--d,0ms)}
+.plan.go .md{opacity:1}
+.plan.go .md.ok{background:var(--ok)}.plan.go .md.mixed{background:var(--out)}.plan.go .md.away{background:var(--away)}
+.plan.go .md.empty{background:transparent;box-shadow:inset 0 0 0 1.5px var(--vac)}
+.lstats{display:grid;gap:22px;min-width:150px}
+.lstats b{display:block;font:700 2.6rem/1 var(--disp);letter-spacing:-.03em}
+.lstats span{color:var(--ink2);font-size:.92rem;display:block;margin-top:4px}
+.lstats .cap{font-size:.85rem;color:var(--ink2);border-top:1px solid var(--line);padding-top:14px}
+.lfeat{max-width:1180px;margin:0 auto;padding:0 24px 72px;display:grid;grid-template-columns:repeat(3,1fr);gap:32px}
+.lfeat h3{font-size:1.25rem;margin-bottom:8px}
+.lfeat p{color:var(--ink2);max-width:36ch}
+
+/* login */
+.login{max-width:1000px;margin:0 auto;padding:24px}
+.login .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:32px}
+.lgrid{display:grid;grid-template-columns:minmax(0,440px) 1fr;gap:48px;align-items:start}
+.lcard h2{font-size:1.9rem;margin-bottom:18px}
+.seg{display:inline-flex;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
+.seg button{border:0;background:transparent;padding:.45rem 1rem;border-radius:9px;font-weight:600;color:var(--ink2)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(20,27,61,.18)}
+.field{display:grid;gap:6px;margin-top:16px;font-weight:600;font-size:.92rem}
+.field input,.field select{padding:.65rem .8rem;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-weight:400;width:100%}
+.demo{margin-top:22px;padding:14px;border-radius:12px;background:var(--surface2);border:1px dashed var(--line);font-size:.9rem;display:grid;gap:10px}
+.demo code{font:600 .9rem var(--body);background:var(--surface);padding:1px 6px;border-radius:6px;border:1px solid var(--line)}
+.can h3{font-size:1.15rem;margin:0 0 8px}
+.can ul{margin:0 0 28px;padding-left:1.1rem;color:var(--ink2)}
+.can li{margin-bottom:6px;max-width:48ch}
+
+/* app shell */
+.top{background:var(--surface);border-bottom:1px solid var(--line);z-index:30}
+.top .in{max-width:1300px;margin:0 auto;padding:12px 20px;display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center}
+.search{display:flex;gap:8px;flex:1 1 280px;max-width:420px}
+.search input{flex:1;min-width:0;padding:.5rem .8rem;border:1px solid var(--line);border-radius:10px;background:var(--surface2)}
+.dctl{display:flex;align-items:center;gap:8px}
+.dlbl{font-weight:600;min-width:150px;text-align:center}
+.who{margin-left:auto;display:flex;align-items:center;gap:10px}
+.role{font-weight:600;font-size:.85rem;padding:4px 10px;border-radius:99px;background:color-mix(in srgb,var(--brand) 14%,transparent);color:var(--brand)}
+.nav{max-width:1300px;margin:0 auto;padding:0 20px;display:flex;gap:4px;overflow-x:auto}
+.nav button{border:0;background:transparent;padding:.7rem .9rem;font-weight:600;color:var(--ink2);border-bottom:3px solid transparent;white-space:nowrap}
+.nav button[aria-selected="true"]{color:var(--ink);border-color:var(--brand)}
+.nav .badge{margin-left:6px;background:var(--out);color:var(--out-ink);border-radius:99px;padding:0 7px;font-size:.78rem}
+#main{max-width:1300px;margin:0 auto;padding:20px}
+@media (min-width:900px){.top{position:sticky;top:env(safe-area-inset-top,0px)}}
+
+/* floor tabs */
+.floors{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.ftab{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:grid;gap:2px}
+.ftab b{font:700 1.05rem var(--disp)}
+.ftab .r{font-size:.8rem;color:var(--ink2)}
+.ftab .n{font-size:.85rem;font-weight:600}
+.ftab.on{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand)}
+.mini{display:block;height:5px;border-radius:3px;background:color-mix(in srgb,var(--out) 70%,var(--surface));overflow:hidden;margin-top:6px}
+.mini u{display:block;height:100%;background:var(--ok)}
+.tools{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.85rem;color:var(--ink2);align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:14px;height:14px;border-radius:4px;display:inline-block}
+.legend .ok{background:var(--ok)}.legend .mixed{background:var(--out)}.legend .away{background:var(--away)}
+.legend .empty{box-shadow:inset 0 0 0 1.5px var(--vac)}
+
+/* map */
+.mapwrap{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+.mapscroll{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px;overflow-x:auto}
+.plan{display:grid;grid-template-columns:repeat(16,var(--cell));grid-auto-rows:var(--cell);gap:var(--gap);width:max-content;margin:0 auto}
+.room{border:0;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:0;position:relative;transition:transform .12s,box-shadow .12s}
+.room:hover{transform:translateY(-2px);box-shadow:0 4px 10px rgba(20,27,61,.25);z-index:3}
+.room .rn{font-weight:700;font-size:max(10px,calc(var(--cell)*.3));line-height:1;font-variant-numeric:tabular-nums}
+.room .pips{display:flex;gap:3px}
+.pip{width:7px;height:7px;border-radius:50%;border:2px solid currentColor;box-sizing:border-box}
+.pip.in{background:currentColor}
+.pip.out{background:transparent}
+.pip.vac{border-style:dotted;opacity:.55}
+.room.ok{background:var(--ok);color:var(--ok-ink)}
+.room.mixed{background:var(--out);color:var(--out-ink)}
+.room.away{background:var(--away);color:var(--away-ink)}
+.room.empty{background:transparent;color:var(--ink2);box-shadow:inset 0 0 0 1.5px var(--vac);border:0}
+.room.sel{outline:3px solid var(--ink);outline-offset:2px;z-index:4}
+.room:focus-visible{outline:3px solid var(--brand);outline-offset:2px;z-index:4}
+.flash{animation:flash .9s ease-out 2}
+@keyframes flash{0%{box-shadow:0 0 0 0 var(--brand)}70%{box-shadow:0 0 0 12px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.court{border-radius:16px;background:var(--surface2);border:1px dashed var(--line);padding:18px;display:flex;flex-direction:column;justify-content:center;gap:10px;min-width:0}
+.court h3{font-size:1.1rem}
+.cbig{display:flex;align-items:baseline;gap:8px}
+.cbig b{font:700 2.6rem/1 var(--disp);letter-spacing:-.03em}
+.cbig span{color:var(--ink2);font-size:.9rem}
+.spine{display:flex;align-items:center;justify-content:center;border-radius:8px;background:repeating-linear-gradient(90deg,var(--surface2) 0 14px,transparent 14px 20px);color:var(--ink2);font-weight:600;font-size:.82rem;text-align:center}
+.spine span{background:var(--surface);padding:2px 14px;border-radius:99px;border:1px solid var(--line)}
+.stack{display:flex;height:12px;border-radius:6px;overflow:hidden;background:color-mix(in srgb,var(--vac) 45%,transparent)}
+.stack i{display:block;height:100%}
+.stack .a{background:var(--ok)}.stack .b{background:var(--out)}
+.rgroup{margin:4px 0 10px;font:700 1rem var(--disp)}
+.rlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:18px}
+.rc{text-align:left;background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--vac);border-radius:10px;padding:8px 10px;display:grid;gap:2px;font-size:.85rem}
+.rc.ok{border-left-color:var(--ok)}.rc.mixed{border-left-color:var(--out)}.rc.away{border-left-color:var(--away)}
+.rc b{font-size:.95rem}
+.rc.sel{outline:3px solid var(--ink);outline-offset:1px}
+.rb{display:flex;align-items:center;gap:6px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.dot{flex:none;width:9px;height:9px;border-radius:50%;background:var(--vac)}
+.dot.in{background:var(--ok)}.dot.out{background:var(--out)}
+
+/* panel */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;position:sticky;top:130px;max-height:calc(100vh - 150px);overflow:auto}
+.panel .ph{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:14px}
+.panel h2{font-size:1.7rem}
+.pempty{text-align:center;padding:28px 8px;color:var(--ink2)}
+.pempty h3{color:var(--ink);margin:10px 0 6px;font-size:1.15rem}
+.beds{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.bedbtn{--c:var(--vac);text-align:left;display:grid;gap:2px;padding:10px;border-radius:14px;border:2px solid transparent;background:color-mix(in srgb,var(--c) 16%,var(--surface))}
+.bedbtn.in{--c:var(--ok)}.bedbtn.out{--c:var(--out)}
+.bedbtn svg{color:var(--c);width:56px;height:38px}
+.bedbtn .bl{font-weight:700;font-size:.85rem}
+.bedbtn .bn{font-weight:600;font-size:.9rem;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.bedbtn .bs{font-size:.8rem;color:var(--ink2)}
+.bedbtn.on{border-color:var(--ink)}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;margin:0 0 14px}
+.facts dt{color:var(--ink2);font-size:.9rem}
+.facts dd{margin:0;font-weight:600;word-break:break-word}
+.tag{font-size:.78rem;font-weight:700;padding:1px 8px;border-radius:6px;background:var(--brand);color:var(--brand-ink);margin-left:6px}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.lform{display:grid;gap:0;padding:14px;border-radius:12px;background:var(--surface2);border:1px solid var(--line)}
+.lform .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.lform .row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.lform .hint{font-size:.82rem;color:var(--ink2);margin-top:10px}
+.lvl{list-style:none;margin:0 0 12px;padding:0;display:grid;gap:8px}
+.lvl li{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:.9rem;padding:8px 10px;border-radius:10px;background:var(--surface2)}
+
+/* overview & tables */
+.ov{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
+.ov .head{grid-column:1/-1;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:28px}
+.huge{font:700 clamp(3.4rem,9vw,6.4rem)/.95 var(--disp);letter-spacing:-.04em;margin:8px 0}
+.head .stack{height:20px;border-radius:10px;margin:18px 0 10px}
+.head .legend{margin-top:6px}
+.head .legend .i{background:var(--ok)}.head .legend .o{background:var(--out)}.head .legend .v{background:var(--vac)}
+.frow{display:grid;grid-template-columns:110px 1fr 84px;gap:12px;align-items:center;margin:12px 0;font-size:.92rem}
+.frow .stack{height:14px}
+.frow b{text-align:right;font-variant-numeric:tabular-nums}
+.mv{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}
+.mv button{width:100%;display:flex;justify-content:space-between;gap:10px;text-align:left;background:var(--surface2);border:1px solid transparent;border-radius:10px;padding:8px 12px;font-size:.92rem}
+.mv button:hover{border-color:var(--brand)}
+.mv span:last-child{color:var(--ink2);white-space:nowrap}
+.tw{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:.92rem}
+.tbl th{text-align:left;font-weight:600;color:var(--ink2);padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.linkb{border:0;background:none;padding:0;font-weight:700;text-align:left;color:var(--brand);text-decoration:underline;text-underline-offset:3px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.fchip{padding:.4rem .9rem;border-radius:99px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:.9rem}
+.fchip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.h2row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.h2row h2{font-size:1.6rem}
+.fc{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:end;height:190px;margin-top:14px}
+.fcb{border:0;background:none;height:100%;display:grid;grid-template-rows:auto 1fr auto;gap:6px;justify-items:center;padding:0;min-width:0}
+.fcb .bar{width:100%;align-self:end;background:color-mix(in srgb,var(--ok) 55%,var(--surface));border-radius:8px 8px 3px 3px;min-height:4px}
+.fcb.on .bar{background:var(--ok)}
+.fcb b{font-variant-numeric:tabular-nums;font-size:.88rem}
+.fcb span{font-size:.78rem;color:var(--ink2)}
+.fcb.on span{color:var(--ink);font-weight:700}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.mine{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.mine h2{font-size:1.5rem;margin-bottom:6px}
+.bigroom{font:700 3rem/1 var(--disp);letter-spacing:-.03em}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,30px);background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:12px;max-width:min(92vw,520px);font-weight:500;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:80}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:1020px){
+  .mapwrap{grid-template-columns:1fr}
+  .panel{position:fixed;left:0;right:0;bottom:0;top:auto;max-height:80%;border-radius:20px 20px 0 0;transform:translateY(105%);transition:transform .25s;z-index:50;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px));box-shadow:0 -12px 40px rgba(0,0,0,.28)}
+  .panel.open{transform:none}
+  .ov,.two-col,.mine{grid-template-columns:1fr}
+}
+@media (max-width:820px){
+  .lhero{grid-template-columns:1fr;gap:32px;padding-top:20px}
+  .lfeat{grid-template-columns:1fr;gap:20px}
+  .lgrid{grid-template-columns:1fr;gap:28px}
+  .lmap{flex-direction:column;padding:18px}
+  .lmap .plan{--m:11px;gap:4px}
+  .lstats{grid-template-columns:1fr 1fr;width:100%}
+  .lstats .cap{grid-column:1/-1}
+  .floors{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .who{margin-left:0}
+  .dlbl{min-width:0}
+}
+@media (max-width:1020px){:root{--cell:34px}}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+'use strict';
+/* ---------- helpers ---------- */
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const pad4=n=>String(n).padStart(4,'0');
+const toISO=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const fromISO=s=>{const p=s.split('-').map(Number);return new Date(p[0],p[1]-1,p[2])};
+const addDays=(s,n)=>{const d=fromISO(s);d.setDate(d.getDate()+n);return toISO(d)};
+const TODAY=toISO(new Date());
+const fmt=s=>fromISO(s).toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+const fmtLong=s=>fromISO(s).toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'});
+const days=(a,b)=>Math.round((fromISO(b)-fromISO(a))/864e5)+1;
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- constants ---------- */
+const FLOORS=[
+  {tab:'Ground',name:'Ground floor',range:'GF-01 to 100'},
+  {tab:'1st floor',name:'First floor',range:'F1-101 to 200'},
+  {tab:'2nd floor',name:'Second floor',range:'F2-201 to 300'},
+  {tab:'3rd floor',name:'Third floor',range:'F3-301 to 400'}
+];
+const REASONS=['Going home','Medical','Family function','Interview or internship','Exam or event travel','Festival break','Other'];
+const CITIES=['Mysuru','Chennai','Hyderabad','Kochi','Mangaluru','Pune','Coimbatore','Hubballi','Vijayawada','Mumbai','Belagavi','Tirupati'];
+const FN=['Aarav','Vivaan','Aditya','Arjun','Rohan','Karthik','Siddharth','Nikhil','Rahul','Varun','Harsh','Ishaan','Manoj','Pranav','Sanjay','Tejas','Abhishek','Deepak','Kiran','Naveen','Prakash','Suresh','Yash','Dev','Ashwin','Bharath','Chetan','Dhruv','Gautam','Hemanth','Jayanth','Lokesh','Mohit','Nitin','Omkar','Rishi','Sachin','Tarun','Uday','Vikram'];
+const LN=['Nair','Iyer','Reddy','Sharma','Gowda','Patel','Kumar','Menon','Rao','Shetty','Singh','Naidu','Bhat','Joshi','Kulkarni','Hegde','Pillai','Chandra','Verma','Das','Jain','Mishra','Prasad','Murthy','Acharya','Kamath','Desai','Yadav','Banerjee','Gupta'];
+const ROOMDESC={ok:'everyone in',mixed:'one student out',away:'everyone out',empty:'vacant'};
+const ROOMWORD={ok:'green',mixed:'amber',away:'red'};
+const STLABEL={in:'In hostel',out:'On leave',vac:'Vacant'};
+const DEMO_PIN='1234', ADMIN_U='warden', ADMIN_P='admin123';
+
+const roomLabel=(f,k)=>f===0?'GF-'+pad(k):'F'+f+'-'+(f*100+k);
+const roomShort=(f,k)=>f===0?pad(k):String(f*100+k);
+
+/* figure-8 plan: two 16x11 loops of 50 rooms, joined by a spine row */
+function pos(k){
+  const ring=k>50?1:0,i=(k-1)%50,o=ring*12;
+  if(i<16)return[1+o,1+i];
+  if(i<25)return[1+(i-15)+o,16];
+  if(i<41)return[11+o,16-(i-25)];
+  return[11-(i-40)+o,1];
+}
+
+/* ---------- data ---------- */
+const KEY='rollcall:v1:'+TODAY;
+let DB=null,loc={},lby={};
+function build(){
+  const r=rng(20260924);
+  const rooms=[],students={},leaves=[];let seq=0,ln=0;
+  for(let f=0;f<4;f++)for(let k=1;k<=100;k++){
+    rooms.push({id:roomLabel(f,k),f:f,k:k,short:roomShort(f,k),beds:[null,null]});
+  }
+  rooms.forEach((rm,idx)=>{
+    const p=r();let count=p<.10?0:p<.28?1:2;
+    if(idx===6)count=2;
+    const slots=count===2?[0,1]:count===1?[Math.floor(r()*2)]:[];
+    slots.forEach(b=>{
+      const id='BH24-'+pad4(++seq);
+      const m=String(6+Math.floor(r()*4));let s='';for(let i=0;i<9;i++)s+=Math.floor(r()*10);
+      students[id]={id:id,name:FN[Math.floor(r()*FN.length)]+' '+LN[Math.floor(r()*LN.length)],mobile:m+s};
+      rm.beds[b]=id;
+    });
+  });
+  const demoRoom=rooms[6];
+  demoRoom.beds.forEach(function(sid,b){ students[sid].name=b===0?'Aarav Nair':'Rohan Iyer'; });
+  const mk=(sid,from,to)=>{leaves.push({id:'L'+(++ln),sid:sid,from:from,to:to,reason:REASONS[Math.floor(r()*REASONS.length)],dest:CITIES[Math.floor(r()*CITIES.length)],applied:addDays(from,-2),by:'student'})};
+  Object.keys(students).forEach(sid=>{
+    if(demoRoom.beds.indexOf(sid)>-1)return;
+    const x=r();
+    if(x<.11){mk(sid,addDays(TODAY,-Math.floor(r()*4)),addDays(TODAY,Math.floor(r()*7)))}
+    else if(x<.18){const fr=addDays(TODAY,1+Math.floor(r()*5));mk(sid,fr,addDays(fr,Math.floor(r()*5)))}
+    else if(x<.24){const to=addDays(TODAY,-1-Math.floor(r()*6));mk(sid,addDays(to,-Math.floor(r()*4)),to)}
+  });
+  mk(demoRoom.beds[1],addDays(TODAY,-1),addDays(TODAY,3));
+  leaves[leaves.length-1].reason='Family function';leaves[leaves.length-1].dest='Mysuru';
+  return{rooms:rooms,students:students,leaves:leaves,seq:seq,ln:ln};
+}
+function load(){try{const s=localStorage.getItem(KEY);if(s){const d=JSON.parse(s);if(d&&d.rooms&&d.rooms.length===400)return d}}catch(e){}return null}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){}}
+function reindex(){
+  loc={};lby={};
+  DB.rooms.forEach((rm,i)=>rm.beds.forEach((sid,b)=>{if(sid)loc[sid]={r:i,b:b}}));
+  DB.leaves.forEach(l=>{(lby[l.sid]=lby[l.sid]||[]).push(l)});
+}
+function leaveOn(sid,d){const a=lby[sid];if(!a)return null;for(let i=0;i<a.length;i++){if(a[i].from<=d&&d<=a[i].to)return a[i]}return null}
+const bedState=(sid,d)=>!sid?'vac':leaveOn(sid,d)?'out':'in';
+function roomState(rm,d){
+  const st=rm.beds.filter(Boolean).map(s=>bedState(s,d));
+  if(!st.length)return'empty';
+  const n=st.filter(x=>x==='in').length;
+  return n===st.length?'ok':n===0?'away':'mixed';
+}
+function count(d,fn){
+  let inn=0,out=0,vac=0,rooms=0;
+  DB.rooms.forEach(rm=>{
+    if(fn&&!fn(rm))return;rooms++;
+    rm.beds.forEach(s=>{if(!s)vac++;else if(leaveOn(s,d))out++;else inn++});
+  });
+  return{res:inn+out,inn:inn,out:out,vac:vac,rooms:rooms};
+}
+const fmtMobile=m=>'+91 '+m.slice(0,5)+' '+m.slice(5);
+const maskMobile=m=>'+91 '+m.slice(0,2)+'••••••'+m.slice(-2);
+const shortName=n=>{const p=n.split(' ');return p[0]+' '+(p[1]?p[1][0]+'.':'')};
+
+/* ---------- state ---------- */
+const S={view:'landing',lrole:'student',session:null,tab:'map',floor:0,mode:'map',date:TODAY,sel:null,bed:0,form:null,lfilter:'active',rq:''};
+
+/* ---------- icons ---------- */
+const BED='<svg viewBox="0 0 64 44" aria-hidden="true"><rect x="2" y="4" width="6" height="36" rx="2" fill="currentColor" opacity=".55"/><rect x="8" y="12" width="54" height="24" rx="5" fill="currentColor"/><rect x="13" y="16" width="14" height="16" rx="4" fill="#fff" opacity=".85"/></svg>';
+const MOON='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+const brand='<span class="brand"><i aria-hidden="true"><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b></i>HostelDaze</span>';
+
+/* ---------- toast ---------- */
+let tt=null;
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),4600)}
+
+/* ---------- landing ---------- */
+function landing(){
+  let dots='';
+  for(let k=1;k<=100;k++){
+    const rm=DB.rooms[k-1],[r,c]=pos(k),st=roomState(rm,TODAY);
+    dots+='<i class="md '+st+'" style="grid-row:'+r+';grid-column:'+c+';--d:'+(k*16)+'ms"></i>';
+  }
+  const all=count(TODAY);
+  const awayRooms=DB.rooms.filter(rm=>roomState(rm,TODAY)==='away').length;
+  return '<div class="lhead">'+brand+'<button class="ib" data-act="theme" aria-label="Switch light or dark theme">'+MOON+'</button></div>'+
+  '<main class="lhero"><div><h1>Know who\'s in every room before the kitchen starts cooking.</h1>'+
+  '<p class="sub">Live floor maps, leave applied in seconds, and an automatic headcount for the mess.</p>'+
+  '<div class="cta"><button class="btn primary lg" data-act="goLogin" data-role="student">Student sign in</button><button class="btn lg" data-act="goLogin" data-role="admin">Admin sign in</button></div>'+
+  '<p class="fine">This is a working prototype with sample data: 400 rooms and 800 beds across four floors. Demo sign-in details are on the next screen.</p></div>'+
+  '<div class="lmap" aria-label="Ground floor today, drawn as a figure-8 plan"><div class="plan" id="lplan">'+dots+'</div>'+
+  '<div class="lstats"><div><b>'+all.inn+'</b><span>students in the hostel today</span></div><div><b>'+all.out+'</b><span>on leave</span></div><div><b>'+awayRooms+'</b><span>rooms with everyone out</span></div>'+
+  '<p class="cap">Ground floor shown: 100 rooms in two loops. Green is everyone in, amber is one out, red is everyone out, outlined is empty.</p></div></div></main>'+
+  '<section class="lfeat"><div><h3>Find anyone by ID</h3><p>Type an ID number and the map opens their room and bed, with today\'s status.</p></div>'+
+  '<div><h3>Apply for leave in seconds</h3><p>Students apply from their own login. Their bed and room change colour straight away.</p></div>'+
+  '<div><h3>A headcount the kitchen can trust</h3><p>Students present on any of the next 30 days, by floor, with a suggested cooking quantity.</p></div></section>';
+}
+function startSweep(){setTimeout(()=>{const m=$('#lplan');if(m)m.classList.add('go')},reduce?0:350)}
+
+/* ---------- login ---------- */
+function loginView(){
+  const st=S.lrole==='student';
+  return '<div class="login"><div class="top">'+brand+'<div style="display:flex;gap:8px"><button class="btn ghost sm" data-act="toLanding">Back</button><button class="ib" data-act="theme" aria-label="Switch light or dark theme">'+MOON+'</button></div></div>'+
+  '<div class="lgrid"><div class="card lcard"><h2>Sign in</h2>'+
+  '<div class="seg" role="group" aria-label="Sign in as"><button data-act="lrole" data-role="student" aria-pressed="'+st+'">Student</button><button data-act="lrole" data-role="admin" aria-pressed="'+!st+'">Admin</button></div>'+
+  '<form data-form="login" novalidate>'+
+  '<label class="field">'+(st?'ID number':'Username')+'<input name="u" autocomplete="username" placeholder="'+(st?'BH24-0001':'warden')+'" autocapitalize="characters"></label>'+
+  '<label class="field">'+(st?'PIN':'Password')+'<input name="p" type="password" autocomplete="current-password" '+(st?'inputmode="numeric"':'')+'></label>'+
+  '<p class="err" role="alert" id="lerr"></p><button class="btn primary lg" type="submit" style="width:100%">Sign in</button></form>'+
+  '<div class="demo"><span>Demo details for this prototype: '+(st?'ID <code>'+DEMO_ID+'</code> and PIN <code>'+DEMO_PIN+'</code>':'username <code>'+ADMIN_U+'</code> and password <code>'+ADMIN_P+'</code>')+'</span><button class="btn sm" data-act="fill" type="button">Fill demo '+(st?'student':'admin')+' details</button></div></div>'+
+  '<div class="can"><h3>Students can</h3><ul><li>Find where a friend sits by typing their ID number.</li><li>See which rooms are full, half empty or away on any day.</li><li>Apply for leave, or cancel it, and watch their own bed and room change colour.</li></ul>'+
+  '<h3>Wardens can</h3><ul><li>See every bed and room by colour, plus who is on leave and until when.</li><li>Get the mess headcount for today and the next 30 days.</li><li>Allot or vacate a bed, and mark a student as returned.</li></ul></div></div></div>';
+}
+
+/* ---------- app shell ---------- */
+function shell(){
+  const a=S.session.role==='admin';
+  return '<header class="top"><div class="in">'+brand+
+  '<form class="search" data-form="search" role="search"><input id="q" placeholder="'+(a?'Find by ID, name or room':'Find a student by ID number')+'" aria-label="Search"><button class="btn" type="submit">Find</button></form>'+
+  '<div class="dctl" id="dctl"></div>'+
+  '<div class="who"><span class="role">'+(a?'Warden':esc(DB.students[S.session.id].name))+'</span><button class="ib" data-act="theme" aria-label="Switch light or dark theme">'+MOON+'</button><button class="btn sm" data-act="signout">Sign out</button></div></div>'+
+  '<nav class="nav" id="nav" role="tablist"></nav></header><main id="main"></main>';
+}
+function dateCtl(){
+  const d=S.date;
+  const rel=d===TODAY?'Today':d===addDays(TODAY,1)?'Tomorrow':d===addDays(TODAY,-1)?'Yesterday':'';
+  return '<button class="ib" data-act="dprev" aria-label="Previous day"'+(d<=addDays(TODAY,-30)?' disabled':'')+'>&lsaquo;</button>'+
+  '<span class="dlbl">'+(rel?rel+', ':'')+fmtLong(d)+'</span>'+
+  '<button class="ib" data-act="dnext" aria-label="Next day"'+(d>=addDays(TODAY,30)?' disabled':'')+'>&rsaquo;</button>'+
+  (d!==TODAY?'<button class="btn sm" data-act="dtoday">Back to today</button>':'');
+}
+function navHTML(){
+  const a=S.session.role==='admin';
+  const items=a?[['ov','Overview'],['map','Floor map'],['leaves','Leaves'],['mess','Mess planner'],['res','Residents']]:[['map','Floor map'],['mine','My room and leave']];
+  const active=DB.leaves.filter(l=>loc[l.sid]&&l.from<=S.date&&S.date<=l.to).length;
+  return items.map(i=>'<button role="tab" data-act="tab" data-tab="'+i[0]+'" aria-selected="'+(S.tab===i[0])+'">'+i[1]+(i[0]==='leaves'&&a?'<span class="badge">'+active+'</span>':'')+'</button>').join('');
+}
+function update(){
+  $('#dctl').innerHTML=dateCtl();
+  $('#nav').innerHTML=navHTML();
+  const v={map:viewMap,mine:viewMine,ov:viewOv,leaves:viewLeaves,mess:viewMess,res:viewRes}[S.tab];
+  $('#main').innerHTML=v();
+}
+
+/* ---------- map view ---------- */
+function viewMap(){
+  const d=S.date,f=S.floor;
+  const tabs=FLOORS.map((F,i)=>{
+    const c=count(d,rm=>rm.f===i),pct=c.res?c.inn/c.res*100:0;
+    return '<button role="tab" class="ftab'+(f===i?' on':'')+'" aria-selected="'+(f===i)+'" data-act="floor" data-f="'+i+'"><b>'+F.tab+'</b><span class="r">'+F.range+'</span><span class="n">'+c.inn+' of '+c.res+' in</span><i class="mini"><u style="width:'+pct+'%"></u></i></button>';
+  }).join('');
+  return '<div class="floors" role="tablist" aria-label="Floors">'+tabs+'</div>'+
+  '<div class="tools"><div class="seg" role="group" aria-label="View mode"><button data-act="mode" data-m="map" aria-pressed="'+(S.mode==='map')+'">Map view</button><button data-act="mode" data-m="list" aria-pressed="'+(S.mode==='list')+'">List view</button></div>'+
+  '<div class="legend"><span><i class="ok"></i>Everyone in</span><span><i class="mixed"></i>One out</span><span><i class="away"></i>Everyone out</span><span><i class="empty"></i>Vacant</span><span>Two dots per room are its beds: filled is in, hollow is out</span></div></div>'+
+  '<div class="mapwrap"><div class="mapscroll">'+(S.mode==='map'?planHTML(f):listHTML(f))+'</div><aside class="panel'+(S.sel!==null?' open':'')+'" aria-label="Room details">'+panelHTML()+'</aside></div>';
+}
+function planHTML(f){
+  const d=S.date;let h='<div class="plan" role="group" aria-label="'+FLOORS[f].name+' plan">';
+  for(let k=1;k<=100;k++){
+    const idx=f*100+k-1,rm=DB.rooms[idx],p=pos(k),st=roomState(rm,d);
+    h+='<button type="button" class="room '+st+(S.sel===idx?' sel':'')+'" data-act="room" data-r="'+idx+'" style="grid-row:'+p[0]+';grid-column:'+p[1]+'" aria-label="Room '+rm.id+', '+ROOMDESC[st]+'" aria-pressed="'+(S.sel===idx)+'"><span class="rn">'+rm.short+'</span><span class="pips">'+rm.beds.map(s=>'<i class="pip '+bedState(s,d)+'"></i>').join('')+'</span></button>';
+  }
+  [0,1].forEach(g=>{
+    const c=count(d,rm=>rm.f===f&&(g?rm.k>50:rm.k<=50));
+    const a=c.res?c.inn/c.res*100:0,b=c.res?c.out/c.res*100:0;
+    h+='<div class="court" style="grid-area:'+(g?'14/2/23/16':'2/2/11/16')+'"><h3>'+(g?'South loop':'North loop')+'</h3><p class="mut">'+DB.rooms[f*100+(g?50:0)].id+' to '+DB.rooms[f*100+(g?99:49)].id+'</p>'+
+    '<div class="cbig"><b>'+c.inn+'</b><span>of '+c.res+' students in</span></div><div class="stack"><i class="a" style="width:'+a+'%"></i><i class="b" style="width:'+b+'%"></i></div><p class="mut">'+c.out+' on leave, '+c.vac+' free beds</p></div>';
+  });
+  h+='<div class="spine" style="grid-area:12/1/13/17"><span>Stairs, lift and warden desk</span></div></div>';
+  return h;
+}
+function listHTML(f){
+  const d=S.date;let h='';
+  [0,1].forEach(g=>{
+    h+='<p class="rgroup">'+(g?'South loop':'North loop')+'</p><div class="rlist">';
+    for(let k=g*50+1;k<=g*50+50;k++){
+      const idx=f*100+k-1,rm=DB.rooms[idx],st=roomState(rm,d);
+      h+='<button type="button" class="rc '+st+(S.sel===idx?' sel':'')+'" data-act="room" data-r="'+idx+'" aria-label="Room '+rm.id+', '+ROOMDESC[st]+'"><b>'+rm.id+'</b>'+
+      rm.beds.map(s=>'<span class="rb"><i class="dot '+bedState(s,d)+'"></i>'+(s?esc(shortName(DB.students[s].name)):'Vacant')+'</span>').join('')+'</button>';
+    }
+    h+='</div>';
+  });
+  return h;
+}
+
+/* ---------- room panel ---------- */
+function panelHTML(){
+  if(S.sel===null)return '<div class="pempty"><svg width="56" height="40" viewBox="0 0 64 44" aria-hidden="true" style="color:var(--vac)">'+BED.replace(/^<svg[^>]*>/,'').replace('</svg>','')+'</svg><h3>Pick a room</h3><p>Choose any room to see its two beds and who is in them.</p></div>';
+  const rm=DB.rooms[S.sel],d=S.date,st=roomState(rm,d);
+  const chipCls=st==='ok'?'in':st==='mixed'?'out':st==='away'?'away':'vac';
+  const chipTxt={ok:'Everyone in',mixed:'One out',away:'Everyone out',empty:'Vacant room'}[st];
+  let h='<div class="ph"><div><h2>'+rm.id+'</h2><p class="mut">'+FLOORS[rm.f].name+', '+(rm.k>50?'south':'north')+' loop</p></div><button class="btn sm" data-act="closepanel" aria-label="Close room details">Close</button></div>'+
+  '<p style="margin-bottom:14px"><span class="chip '+chipCls+'">'+chipTxt+'</span> <span class="mut" style="font-size:.85rem">on '+fmtLong(d)+'</span></p>'+
+  '<div class="beds">';
+  rm.beds.forEach((sid,b)=>{
+    const s=bedState(sid,d);
+    h+='<button type="button" class="bedbtn '+s+(S.bed===b?' on':'')+'" data-act="bed" data-b="'+b+'" aria-pressed="'+(S.bed===b)+'">'+BED+'<span class="bl">Bed '+'AB'[b]+'</span><span class="bn">'+(sid?esc(DB.students[sid].name):'Vacant')+'</span><span class="bs">'+STLABEL[s]+'</span></button>';
+  });
+  h+='</div>'+bedDetail(rm,S.bed);
+  return h;
+}
+function bedDetail(rm,b){
+  const sid=rm.beds[b],d=S.date,admin=S.session.role==='admin';
+  if(!sid){
+    let h='<p class="mut" style="margin-bottom:10px">Bed '+'AB'[b]+' is free.</p>';
+    if(admin)h+=S.form==='allot'?allotForm(rm,b):'<button class="btn primary" data-act="openallot">Allot this bed</button>';
+    return h;
+  }
+  const s=DB.students[sid],own=S.session.role==='student'&&sid===S.session.id,show=admin||own;
+  const lv=leaveOn(sid,d),state=lv?'out':'in';
+  let h='<dl class="facts"><dt>Name</dt><dd>'+esc(s.name)+(own?'<span class="tag">You</span>':'')+'</dd>'+
+  '<dt>ID number</dt><dd>'+esc(sid)+'</dd>'+
+  '<dt>Mobile</dt><dd>'+(show?fmtMobile(s.mobile):maskMobile(s.mobile))+'</dd>'+
+  '<dt>Status</dt><dd><span class="chip '+state+'">'+STLABEL[state]+'</span></dd>';
+  if(lv){
+    h+='<dt>Away</dt><dd>'+fmt(lv.from)+' to '+fmt(lv.to)+', back on '+fmt(addDays(lv.to,1))+'</dd>';
+    if(show)h+='<dt>Going to</dt><dd>'+esc(lv.dest||'Not given')+' ('+esc(lv.reason)+')</dd>';
+  }
+  h+='</dl>';
+  if(show){
+    const mine=(lby[sid]||[]).filter(l=>l.to>=TODAY).sort((a,c)=>a.from<c.from?-1:1);
+    if(mine.length){
+      h+='<ul class="lvl">'+mine.map(l=>{
+        const now=l.from<=TODAY;
+        return '<li><span>'+fmt(l.from)+' to '+fmt(l.to)+' &middot; '+esc(l.reason)+'</span><button class="btn sm" data-act="'+(now&&admin?'endleave':'cancelleave')+'" data-l="'+l.id+'">'+(now&&admin?'Mark returned':now?'End leave':'Cancel')+'</button></li>';
+      }).join('')+'</ul>';
+    }
+    if(S.form==='leave')h+=leaveForm(sid);
+    else if(S.form==='vacate')h+='<p style="margin-bottom:8px"><b>Vacate this bed?</b> '+esc(s.name)+' and their leave records are removed.</p><div class="acts"><button class="btn danger" data-act="vacateyes">Vacate bed</button><button class="btn" data-act="cancelform">Keep student</button></div>';
+    else h+='<div class="acts"><button class="btn primary" data-act="openleave">'+(admin?'Mark on leave':'Apply for leave')+'</button>'+(admin?'<button class="btn danger" data-act="openvacate">Vacate bed</button>':'')+'</div>';
+  }
+  return h;
+}
+function leaveForm(sid){
+  const from=S.date<TODAY?TODAY:S.date;
+  return '<form class="lform" data-form="leave" data-sid="'+esc(sid)+'" novalidate><div class="two">'+
+  '<label class="field" style="margin-top:0">From<input type="date" name="from" min="'+TODAY+'" value="'+from+'" required></label>'+
+  '<label class="field" style="margin-top:0">Last day away<input type="date" name="to" min="'+TODAY+'" value="'+addDays(from,2)+'" required></label></div>'+
+  '<label class="field">Reason<select name="reason">'+REASONS.map(r=>'<option>'+r+'</option>').join('')+'</select></label>'+
+  '<label class="field">Going to<input name="dest" placeholder="City or town" maxlength="40"></label>'+
+  '<p class="err" role="alert"></p><div class="row"><button class="btn primary" type="submit">Apply leave</button><button class="btn" type="button" data-act="cancelform">Cancel</button></div>'+
+  '<p class="hint">Room colours follow the date at the top of the page. Change it to preview any day.</p></form>';
+}
+function allotForm(rm,b){
+  return '<form class="lform" data-form="allot" data-r="'+DB.rooms.indexOf(rm)+'" data-b="'+b+'" novalidate>'+
+  '<label class="field" style="margin-top:0">Student name<input name="name" maxlength="40" autocomplete="off"></label>'+
+  '<label class="field">Mobile number<input name="mobile" inputmode="numeric" maxlength="10" placeholder="10 digits" autocomplete="off"></label>'+
+  '<p class="hint">ID number will be <b>BH24-'+pad4(DB.seq+1)+'</b>. The default PIN is '+DEMO_PIN+'.</p>'+
+  '<p class="err" role="alert"></p><div class="row"><button class="btn primary" type="submit">Allot bed</button><button class="btn" type="button" data-act="cancelform">Cancel</button></div></form>';
+}
+
+/* ---------- student: my room ---------- */
+function viewMine(){
+  const sid=S.session.id,s=DB.students[sid],L=loc[sid];
+  if(!L)return '<div class="card"><h2>No bed allotted</h2><p class="mut">Ask the warden to allot you a bed.</p></div>';
+  const rm=DB.rooms[L.r],mate=rm.beds[1-L.b],lv=leaveOn(sid,TODAY);
+  const all=(lby[sid]||[]).slice().sort((a,c)=>a.from<c.from?1:-1);
+  const rows=all.length?'<ul class="lvl">'+all.map(l=>{
+    const st=l.to<TODAY?'past':l.from<=TODAY?'active':'upcoming';
+    return '<li><span><b>'+fmt(l.from)+' to '+fmt(l.to)+'</b> ('+days(l.from,l.to)+' day'+(days(l.from,l.to)>1?'s':'')+') &middot; '+esc(l.reason)+(l.dest?', '+esc(l.dest):'')+'</span><span style="display:flex;gap:8px;align-items:center"><span class="chip '+st+'">'+({past:'Ended',active:'Away now',upcoming:'Upcoming'}[st])+'</span>'+(st==='past'?'':'<button class="btn sm" data-act="cancelleave" data-l="'+l.id+'">'+(st==='active'?'End leave':'Cancel')+'</button>')+'</span></li>';
+  }).join('')+'</ul>':'<p class="mut">No leave applied yet.</p>';
+  return '<div class="mine"><div class="card"><p class="mut">Your room</p><div class="bigroom">'+rm.id+'</div><p class="mut" style="margin:6px 0 14px">Bed '+'AB'[L.b]+', '+FLOORS[rm.f].name+'</p>'+
+  '<dl class="facts"><dt>Name</dt><dd>'+esc(s.name)+'</dd><dt>ID number</dt><dd>'+esc(sid)+'</dd><dt>Mobile</dt><dd>'+fmtMobile(s.mobile)+'</dd><dt>Today</dt><dd><span class="chip '+(lv?'out':'in')+'">'+(lv?'On leave until '+fmt(lv.to):'In hostel')+'</span></dd>'+
+  '<dt>Roommate</dt><dd>'+(mate?esc(DB.students[mate].name)+' <span class="chip '+bedState(mate,TODAY)+'" style="margin-left:6px">'+STLABEL[bedState(mate,TODAY)]+'</span>':'Bed is free')+'</dd></dl>'+
+  '<button class="btn" data-act="jump" data-sid="'+esc(sid)+'">Show my room on the map</button></div>'+
+  '<div style="display:grid;gap:16px"><div class="card"><h2>Apply for leave</h2><p class="mut" style="margin-bottom:12px">Your bed and room change colour on the first day of your leave.</p>'+leaveForm(sid)+'</div>'+
+  '<div class="card"><h2>Your leave</h2>'+rows+'</div></div></div>';
+}
+
+/* ---------- admin: overview ---------- */
+function relDay(d){return d===TODAY?'today':d===addDays(TODAY,1)?'tomorrow':'on '+fmtLong(d)}
+function viewOv(){
+  const d=S.date,c=count(d);
+  const w=x=>c.res+c.vac?x/(c.res+c.vac)*100:0;
+  const rows=FLOORS.map((F,i)=>{const x=count(d,rm=>rm.f===i);return '<div class="frow"><span>'+F.tab+'</span><div class="stack"><i class="a" style="width:'+(x.res?x.inn/(x.res+x.vac)*100:0)+'%"></i><i class="b" style="width:'+(x.out/(x.res+x.vac)*100)+'%"></i></div><b>'+x.inn+' / '+x.res+'</b></div>'}).join('');
+  const leaving=DB.leaves.filter(l=>l.from===d&&loc[l.sid]),back=DB.leaves.filter(l=>addDays(l.to,1)===d&&loc[l.sid]);
+  const list=(a,fn)=>a.length?'<ul class="mv">'+a.slice(0,7).map(l=>'<li><button data-act="jump" data-sid="'+esc(l.sid)+'"><span>'+esc(DB.students[l.sid].name)+' &middot; '+DB.rooms[loc[l.sid].r].id+'</span><span>'+fn(l)+'</span></button></li>').join('')+(a.length>7?'<li class="mut" style="padding:4px 12px">and '+(a.length-7)+' more in the Leaves tab</li>':'')+'</ul>':'<p class="mut" style="margin-top:8px">Nobody.</p>';
+  return '<div class="ov"><section class="head"><p class="mut">Mess headcount for '+fmtLong(d)+'</p><div class="huge">'+c.inn+'</div>'+
+  '<p>students will eat in the hostel '+relDay(d)+'. Cook for <b>'+Math.ceil(c.inn*1.05)+'</b> with a 5% buffer.</p>'+
+  '<div class="stack"><i class="a" style="width:'+w(c.inn)+'%"></i><i class="b" style="width:'+w(c.out)+'%"></i></div>'+
+  '<div class="legend"><span><i class="i"></i>'+c.inn+' in hostel</span><span><i class="o"></i>'+c.out+' on leave</span><span><i class="v"></i>'+c.vac+' free beds</span></div></section>'+
+  '<section class="card"><h2 style="font-size:1.25rem">By floor</h2><p class="mut">Students in, out of students allotted</p>'+rows+'</section>'+
+  '<section class="card"><h2 style="font-size:1.25rem">Leaving '+relDay(d)+' ('+leaving.length+')</h2>'+list(leaving,l=>'until '+fmt(l.to))+'<h2 style="font-size:1.25rem;margin-top:20px">Back '+relDay(d)+' ('+back.length+')</h2>'+list(back,l=>'from '+esc(l.dest||'leave'))+'</section>'+
+  '<p style="grid-column:1/-1"><button class="btn sm ghost" data-act="reset">Reset demo data</button></p></div>';
+}
+
+/* ---------- admin: leaves ---------- */
+function leaveStatus(l,d){return l.from<=d&&d<=l.to?'active':l.from>d?'upcoming':'past'}
+function viewLeaves(){
+  const d=S.date,all=DB.leaves.filter(l=>loc[l.sid]).map(l=>({l:l,st:leaveStatus(l,d)}));
+  const n={active:0,upcoming:0,past:0,all:all.length};all.forEach(x=>n[x.st]++);
+  let rows=all.filter(x=>S.lfilter==='all'||x.st===S.lfilter);
+  rows.sort((a,b)=>S.lfilter==='past'||S.lfilter==='all'?(a.l.from<b.l.from?1:-1):(a.l.to<b.l.to?-1:1));
+  const chips=[['active','Away on '+fmt(d)],['upcoming','Upcoming'],['past','Ended'],['all','All']].map(c=>'<button class="fchip" data-act="lfilter" data-f="'+c[0]+'" aria-pressed="'+(S.lfilter===c[0])+'">'+c[1]+' ('+n[c[0]]+')</button>').join('');
+  const body=rows.slice(0,80).map(x=>{
+    const l=x.l,s=DB.students[l.sid],rm=DB.rooms[loc[l.sid].r],now=l.from<=TODAY&&TODAY<=l.to;
+    return '<tr><td><button class="linkb" data-act="jump" data-sid="'+esc(l.sid)+'">'+esc(s.name)+'</button></td><td>'+esc(l.sid)+'</td><td>'+rm.id+'</td><td>'+fmt(l.from)+' to '+fmt(l.to)+'</td><td>'+days(l.from,l.to)+'</td><td>'+esc(l.reason)+'</td><td>'+esc(l.dest||'')+'</td><td><span class="chip '+x.st+'">'+({active:'Away',upcoming:'Upcoming',past:'Ended'}[x.st])+'</span></td><td>'+(x.st==='past'?'':'<button class="btn sm" data-act="'+(now?'endleave':'cancelleave')+'" data-l="'+l.id+'">'+(now?'Mark returned':'Cancel')+'</button>')+'</td></tr>';
+  }).join('');
+  return '<div class="h2row"><h2>Leaves</h2></div><div class="chips">'+chips+'</div><div class="card tw" style="padding:6px 8px">'+
+  (rows.length?'<table class="tbl"><thead><tr><th>Student</th><th>ID</th><th>Room</th><th>Dates</th><th>Days</th><th>Reason</th><th>Going to</th><th>Status</th><th></th></tr></thead><tbody>'+body+'</tbody></table>'+(rows.length>80?'<p class="mut" style="padding:10px 12px">Showing 80 of '+rows.length+'. Use the filters to narrow down.</p>':''):'<p class="mut" style="padding:18px">No leaves in this list.</p>')+'</div>';
+}
+
+/* ---------- admin: mess ---------- */
+function messText(d){
+  const c=count(d);
+  return 'HostelDaze mess headcount, '+fmtLong(d)+'\nEating in hostel: '+c.inn+' (cook for '+Math.ceil(c.inn*1.05)+' with 5% buffer)\n'+
+  FLOORS.map((F,i)=>F.name+': '+count(d,rm=>rm.f===i).inn).join('\n')+'\nOn leave: '+c.out+'\nFree beds: '+c.vac;
+}
+function viewMess(){
+  const d=S.date,c=count(d);
+  const fl=FLOORS.map((F,i)=>{const x=count(d,rm=>rm.f===i);return '<tr><td>'+F.name+'</td><td><b>'+x.inn+'</b></td><td>'+x.out+'</td><td>'+x.vac+'</td></tr>'}).join('');
+  const fc=[];for(let i=0;i<7;i++){const x=addDays(d,i);fc.push({d:x,n:count(x).inn})}
+  const max=Math.max.apply(null,fc.map(x=>x.n))||1;
+  return '<div class="h2row"><h2>Mess planner</h2><button class="btn primary" data-act="copymess">Copy summary for the kitchen</button></div>'+
+  '<div class="two-col"><section class="card"><p class="mut">Students eating '+relDay(d)+'</p><div class="huge" style="font-size:5rem">'+c.inn+'</div><p>Suggested cooking quantity: <b>'+Math.ceil(c.inn*1.05)+'</b> (5% buffer)</p>'+
+  '<div class="tw" style="margin-top:14px"><table class="tbl"><thead><tr><th>Floor</th><th>Eating</th><th>On leave</th><th>Free beds</th></tr></thead><tbody>'+fl+'<tr><td><b>Total</b></td><td><b>'+c.inn+'</b></td><td>'+c.out+'</td><td>'+c.vac+'</td></tr></tbody></table></div></section>'+
+  '<section class="card"><h2 style="font-size:1.25rem">Next seven days</h2><p class="mut">Tap a day to plan for it.</p><div class="fc">'+fc.map(x=>'<button class="fcb'+(x.d===d?' on':'')+'" data-act="fcday" data-d="'+x.d+'"><b>'+x.n+'</b><div class="bar" style="height:'+(x.n/max*100)+'%;width:100%"></div><span>'+fromISO(x.d).toLocaleDateString('en-IN',{weekday:'short'})+' '+fromISO(x.d).getDate()+'</span></button>').join('')+'</div></section></div>';
+}
+
+/* ---------- admin: residents ---------- */
+function resRows(){
+  const q=S.rq.trim().toLowerCase(),d=S.date;
+  const all=Object.keys(DB.students).filter(id=>loc[id]).sort().filter(id=>{
+    if(!q)return true;const s=DB.students[id],rm=DB.rooms[loc[id].r];
+    return id.toLowerCase().includes(q)||s.name.toLowerCase().includes(q)||rm.id.toLowerCase().includes(q);
+  });
+  return{n:all.length,html:all.slice(0,60).map(id=>{
+    const s=DB.students[id],L=loc[id],rm=DB.rooms[L.r],st=bedState(id,d);
+    return '<tr><td><button class="linkb" data-act="jump" data-sid="'+id+'">'+esc(s.name)+'</button></td><td>'+id+'</td><td>'+fmtMobile(s.mobile)+'</td><td>'+rm.id+', bed '+'AB'[L.b]+'</td><td><span class="chip '+st+'">'+STLABEL[st]+'</span></td></tr>';
+  }).join('')};
+}
+function viewRes(){
+  const r=resRows();
+  return '<div class="h2row"><h2>Residents</h2><input id="rq" class="search" style="max-width:340px;padding:.5rem .8rem;border:1px solid var(--line);border-radius:10px;background:var(--surface)" placeholder="Search name, ID or room" aria-label="Search residents" value="'+esc(S.rq)+'"></div>'+
+  '<p class="mut" id="rcount" style="margin-bottom:10px">'+r.n+' residents'+(r.n>60?', showing the first 60':'')+'</p><div class="card tw" style="padding:6px 8px"><table class="tbl"><thead><tr><th>Name</th><th>ID</th><th>Mobile</th><th>Bed</th><th>Status</th></tr></thead><tbody id="rbody">'+r.html+'</tbody></table></div>';
+}
+
+/* ---------- actions ---------- */
+function flash(idx){
+  const e=document.querySelector('[data-act="room"][data-r="'+idx+'"]');
+  if(e){e.classList.add('flash');setTimeout(()=>e.classList.remove('flash'),1900)}
+}
+function jump(sid){
+  const L=loc[sid];if(!L)return;
+  S.tab='map';S.floor=DB.rooms[L.r].f;S.sel=L.r;S.bed=L.b;S.form=null;
+  update();
+  const e=document.querySelector('.room.sel,.rc.sel');
+  if(e){e.scrollIntoView({block:'center',inline:'center',behavior:reduce?'auto':'smooth'});flash(L.r)}
+}
+function find(raw){
+  let q=raw.trim();if(!q)return;
+  const admin=S.session.role==='admin',U=q.toUpperCase();
+  let sid=null;
+  if(DB.students[U]&&loc[U])sid=U;
+  else if(/^\d{1,4}$/.test(q)&&DB.students['BH24-'+pad4(+q)]&&loc['BH24-'+pad4(+q)])sid='BH24-'+pad4(+q);
+  if(!sid){
+    const ri=DB.rooms.findIndex(r=>r.id===U);
+    if(ri>-1){S.tab='map';S.floor=DB.rooms[ri].f;S.sel=ri;S.bed=DB.rooms[ri].beds[0]?0:1;S.form=null;update();const e=document.querySelector('.room.sel,.rc.sel');if(e){e.scrollIntoView({block:'center',inline:'center'});flash(ri)}return}
+  }
+  if(!sid&&admin){const ql=q.toLowerCase();sid=Object.keys(DB.students).find(k=>loc[k]&&DB.students[k].name.toLowerCase().includes(ql))||null}
+  if(!sid){toast('No match for "'+q+'". Enter a full ID number such as BH24-0012'+(admin?', a name or a room like GF-07':' or a room like GF-07')+'.');return}
+  jump(sid);
+  const s=DB.students[sid],st=bedState(sid,S.date),lv=leaveOn(sid,S.date);
+  toast(s.name+' is in '+DB.rooms[loc[sid].r].id+', bed '+'AB'[loc[sid].b]+'. '+(lv?'On leave, back on '+fmt(addDays(lv.to,1))+'.':'In the hostel '+relDay(S.date)+'.'));
+}
+function endLeave(id){
+  const l=DB.leaves.find(x=>x.id===id);if(!l)return;
+  if(l.from>=TODAY)DB.leaves=DB.leaves.filter(x=>x!==l);else l.to=addDays(TODAY,-1);
+  save();reindex();
+  const L=loc[l.sid];toast(DB.students[l.sid].name+' is back. '+(L?DB.rooms[L.r].id+' updated.':''));
+  update();if(L)flash(L.r);
+}
+function cancelLeave(id){
+  const l=DB.leaves.find(x=>x.id===id);if(!l)return;
+  if(l.from<=TODAY&&TODAY<=l.to){l.to=addDays(TODAY,-1);if(l.to<l.from)DB.leaves=DB.leaves.filter(x=>x!==l)}
+  else DB.leaves=DB.leaves.filter(x=>x!==l);
+  save();reindex();
+  const L=loc[l.sid];toast('Leave cancelled.'+(L?' '+DB.rooms[L.r].id+' updated.':''));
+  update();if(L)flash(L.r);
+}
+function copy(text){
+  try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(()=>toast('Copied. Paste it into WhatsApp or email.'),()=>fallbackCopy(text));return}}catch(e){}
+  fallbackCopy(text);
+}
+function fallbackCopy(text){
+  const t=document.createElement('textarea');t.value=text;t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.select();
+  let ok=false;try{ok=document.execCommand('copy')}catch(e){}
+  document.body.removeChild(t);
+  toast(ok?'Copied. Paste it into WhatsApp or email.':'Copy is blocked here. Select the numbers on screen instead.');
+}
+function setTheme(){
+  const root=document.documentElement;
+  const dark=root.getAttribute('data-theme')?root.getAttribute('data-theme')==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;
+  root.setAttribute('data-theme',dark?'light':'dark');
+}
+function render(){
+  const root=$('#root');
+  if(S.view==='landing'){root.innerHTML=landing();startSweep()}
+  else if(S.view==='login'){root.innerHTML=loginView()}
+  else{root.innerHTML=shell();update()}
+  window.scrollTo(0,0);
+}
+
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-act]');if(!t)return;
+  const a=t.dataset.act;
+  switch(a){
+    case'theme':setTheme();break;
+    case'goLogin':S.view='login';S.lrole=t.dataset.role;render();break;
+    case'toLanding':S.view='landing';render();break;
+    case'lrole':S.lrole=t.dataset.role;render();break;
+    case'fill':{const i=document.querySelectorAll('.login input');if(S.lrole==='student'){i[0].value=DEMO_ID;i[1].value=DEMO_PIN}else{i[0].value=ADMIN_U;i[1].value=ADMIN_P}break}
+    case'signout':S.session=null;S.view='landing';S.sel=null;S.form=null;S.date=TODAY;render();break;
+    case'tab':S.tab=t.dataset.tab;S.form=null;update();break;
+    case'floor':S.floor=+t.dataset.f;S.sel=null;S.form=null;update();break;
+    case'mode':S.mode=t.dataset.m;update();break;
+    case'room':{S.sel=+t.dataset.r;const rm=DB.rooms[S.sel];const own=S.session.role==='student'?rm.beds.indexOf(S.session.id):-1;S.bed=own>-1?own:rm.beds[0]?0:1;S.form=null;update();const n=document.querySelector('.room.sel,.rc.sel');if(n)n.focus({preventScroll:true});break}
+    case'bed':S.bed=+t.dataset.b;S.form=null;update();{const n=document.querySelector('.bedbtn.on');if(n)n.focus({preventScroll:true})}break;
+    case'closepanel':S.sel=null;S.form=null;update();break;
+    case'dprev':S.date=addDays(S.date,-1);update();break;
+    case'dnext':S.date=addDays(S.date,1);update();break;
+    case'dtoday':S.date=TODAY;update();break;
+    case'fcday':S.date=t.dataset.d;update();break;
+    case'openleave':S.form='leave';update();break;
+    case'openallot':S.form='allot';update();break;
+    case'openvacate':S.form='vacate';update();break;
+    case'cancelform':S.form=null;update();break;
+    case'endleave':endLeave(t.dataset.l);break;
+    case'cancelleave':cancelLeave(t.dataset.l);break;
+    case'vacateyes':{
+      const rm=DB.rooms[S.sel],sid=rm.beds[S.bed],nm=DB.students[sid].name;
+      delete DB.students[sid];DB.leaves=DB.leaves.filter(l=>l.sid!==sid);rm.beds[S.bed]=null;
+      save();reindex();S.form=null;toast(nm+' vacated bed '+'AB'[S.bed]+' in '+rm.id+'.');update();flash(S.sel);break}
+    case'jump':jump(t.dataset.sid);break;
+    case'lfilter':S.lfilter=t.dataset.f;update();break;
+    case'copymess':copy(messText(S.date));break;
+    case'reset':try{localStorage.removeItem(KEY)}catch(x){}DB=build();reindex();save();S.sel=null;S.form=null;toast('Demo data restored.');update();break;
+  }
+});
+document.addEventListener('submit',e=>{
+  e.preventDefault();
+  const f=e.target,kind=f.dataset.form;
+  if(kind==='login'){
+    const u=f.elements.u.value.trim(),p=f.elements.p.value,err=$('#lerr');
+    if(S.lrole==='student'){
+      const id=u.toUpperCase();
+      if(!DB.students[id]||!loc[id]||p!==DEMO_PIN){err.textContent='That ID number and PIN do not match. Check the ID, or use PIN '+DEMO_PIN+' in this demo.';return}
+      S.session={role:'student',id:id};S.tab='map';
+      S.floor=DB.rooms[loc[id].r].f;
+    }else{
+      if(u!==ADMIN_U||p!==ADMIN_P){err.textContent='Username or password is incorrect. Demo details are shown below the form.';return}
+      S.session={role:'admin'};S.tab='ov';
+    }
+    S.view='app';S.sel=null;S.form=null;S.date=TODAY;render();
+    toast(S.session.role==='admin'?'Signed in as warden.':'Welcome, '+DB.students[S.session.id].name.split(' ')[0]+'.');
+  }
+  else if(kind==='search'){find($('#q').value)}
+  else if(kind==='leave'){
+    const sid=f.dataset.sid,from=f.elements.from.value,to=f.elements.to.value,err=f.querySelector('.err');
+    if(!from||!to){err.textContent='Choose both dates.';return}
+    if(from<TODAY){err.textContent='Leave cannot start in the past.';return}
+    if(to<from){err.textContent='The last day away must be on or after the start date.';return}
+    const clash=(lby[sid]||[]).find(l=>!(to<l.from||from>l.to));
+    if(clash){err.textContent='These dates overlap your leave on '+fmt(clash.from)+' to '+fmt(clash.to)+'. Cancel that leave first.';return}
+    DB.leaves.push({id:'L'+(++DB.ln),sid:sid,from:from,to:to,reason:f.elements.reason.value,dest:f.elements.dest.value.trim(),applied:TODAY,by:S.session.role});
+    save();reindex();
+    const L=loc[sid],rm=DB.rooms[L.r];S.form=null;
+    const st=roomState(rm,S.date);
+    if(leaveOn(sid,S.date))toast('Leave applied for '+fmt(from)+' to '+fmt(to)+'. Room '+rm.id+' is now '+ROOMWORD[st]+'.');
+    else toast('Leave saved for '+fmt(from)+' to '+fmt(to)+'. Room '+rm.id+' changes colour from '+fmt(from)+'.');
+    update();flash(L.r);
+  }
+  else if(kind==='allot'){
+    const name=f.elements.name.value.trim(),mob=f.elements.mobile.value.trim(),err=f.querySelector('.err');
+    if(!name){err.textContent='Enter the student\'s name.';return}
+    if(!/^[6-9]\d{9}$/.test(mob)){err.textContent='Enter a 10-digit Indian mobile number starting with 6, 7, 8 or 9.';return}
+    const rm=DB.rooms[+f.dataset.r],b=+f.dataset.b,id='BH24-'+pad4(++DB.seq);
+    DB.students[id]={id:id,name:name,mobile:mob};rm.beds[b]=id;
+    save();reindex();S.form=null;toast(name+' allotted to '+rm.id+', bed '+'AB'[b]+'. ID number '+id+'.');update();flash(S.sel);
+  }
+});
+document.addEventListener('input',e=>{
+  if(e.target.id==='rq'){S.rq=e.target.value;const r=resRows();$('#rbody').innerHTML=r.html;$('#rcount').textContent=r.n+' residents'+(r.n>60?', showing the first 60':'')}
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&S.view==='app'&&S.tab==='map'&&S.sel!==null){S.sel=null;S.form=null;update()}
+});
+
+/* ---------- boot ---------- */
+DB=load()||build();
+reindex();
+let DEMO_ID=DB.rooms[6].beds[0];
+if(!DB.students[DEMO_ID])DEMO_ID=Object.keys(DB.students)[0];
+save();
+render();
+})();
+</script>
+</body>
+</html>
